@@ -4,12 +4,18 @@ import librosa
 import numpy as np
 
 def get_metadata(file_path):
-    """Extracts metadata from an MP3 file."""
+    """Extracts readable metadata from an MP3 file."""
     audio = MP3(file_path, ID3=ID3)
     metadata = {}
     if audio.tags:
-        for tag in audio.tags:
-            metadata[tag] = str(audio.tags[tag])
+        for tag in audio.tags.values():
+            try:
+                if hasattr(tag, "desc") and tag.desc.lower() == "bpm":
+                    metadata["BPM"] = tag.text[0]
+                elif hasattr(tag, "text"):
+                    metadata[tag.FrameID] = tag.text[0]
+            except Exception:
+                continue  # skip unreadable/binary tags
     return metadata
 
 def get_bpm(file_path):
@@ -17,7 +23,7 @@ def get_bpm(file_path):
     y, sr = librosa.load(file_path, sr=None)  # Load audio file
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)  # Detect beats
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr, onset_envelope=onset_env)  # Estimate BPM
-    return round(tempo, 2)  # Return BPM as a rounded value
+    return round(float(tempo[0]), 2)
 
 def add_bpm_metadata(file_path, bpm):
     """Adds a BPM tag to the MP3 metadata."""
