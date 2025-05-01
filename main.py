@@ -4,7 +4,7 @@ import time
 import shutil
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QLabel, QFileDialog,
-    QVBoxLayout, QHBoxLayout, QTextEdit, QCheckBox, QComboBox
+    QVBoxLayout, QHBoxLayout, QTextEdit, QCheckBox, QComboBox, QProgressBar
 )
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TXXX
@@ -47,10 +47,29 @@ def get_metadata(file_path):
     return metadata
 
 
+def scan_folder(folder):
+    """Recursively scan a folder for all MP3 and WAV files."""
+    music_files = []
+    for root, _, files in os.walk(folder):
+        for file in files:
+            if file.lower().endswith((".mp3", ".wav")):
+                music_files.append(os.path.join(root, file))
+    return music_files
+
+
 def move_to_sorted_folder(base_folder, file_path, sort_value, category):
     target_folder = os.path.join(base_folder, category, sort_value)
     os.makedirs(target_folder, exist_ok=True)
     shutil.move(file_path, os.path.join(target_folder, os.path.basename(file_path)))
+
+
+def delete_empty_folders(folder):
+    """Deletes empty folders after sorting."""
+    for root, dirs, _ in os.walk(folder, topdown=False):
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            if not os.listdir(dir_path):  # If folder is empty
+                os.rmdir(dir_path)
 
 
 class SortifyApp(QWidget):
@@ -61,6 +80,7 @@ class SortifyApp(QWidget):
 
         self.folder_path = None
         self.file_list = []
+        self.preview_mode = False  # Track if user is in preview mode
 
         # Widgets
         self.folder_label = QLabel("No folder selected.")
@@ -69,10 +89,12 @@ class SortifyApp(QWidget):
         self.sort_by_label = QLabel("Sort by:")
         self.sort_dropdown = QComboBox()
         self.sort_dropdown.addItems(["Artist", "Genre", "BPM Range"])
-        self.submit_button = QPushButton("Sort Music")
-        self.submit_button.setEnabled(False)
+        self.preview_button = QPushButton("Preview Sorting")
+        self.sort_button = QPushButton("Sort Music")
+        self.sort_button.setEnabled(False)
         self.output_box = QTextEdit()
         self.output_box.setReadOnly(True)
+        self.progress_bar = QProgressBar()
 
         # Layout
         layout = QVBoxLayout()
@@ -85,34 +107,43 @@ class SortifyApp(QWidget):
         row.addWidget(self.sort_dropdown)
         layout.addLayout(row)
 
-        layout.addWidget(self.submit_button)
+        layout.addWidget(self.preview_button)
+        layout.addWidget(self.sort_button)
+        layout.addWidget(self.progress_bar)
         layout.addWidget(self.output_box)
         self.setLayout(layout)
 
         # Events
         self.select_folder_button.clicked.connect(self.select_folder)
-        self.submit_button.clicked.connect(self.sort_files)
+        self.preview_button.clicked.connect(lambda: self.sort_files(preview=True))
+        self.sort_button.clicked.connect(lambda: self.sort_files(preview=False))
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder:
             self.folder_path = folder
-            self.file_list = [
-                os.path.join(folder, f)
-                for f in os.listdir(folder)
-                if f.lower().endswith((".mp3", ".wav"))
-            ]
+            self.file_list = scan_folder(folder)
             self.folder_label.setText(f"Selected: {os.path.basename(folder)} ({len(self.file_list)} files)")
-            self.submit_button.setEnabled(len(self.file_list) > 0)
+            self.sort_button.setEnabled(len(self.file_list) > 0)
+            self.preview_button.setEnabled(len(self.file_list) > 0)
 
-    def sort_files(self):
+    def sort_files(self, preview):
+        self.preview_mode = preview
         self.output_box.clear()
         sort_option = self.sort_dropdown.currentText()
+        self.file_list = scan_folder(self.folder_path)  # Refresh the file list
+        total_files = len(self.file_list)
+        self.progress_bar.setMaximum(total_files)
+        self.progress_bar.setValue(0)
 
-        for file_path in self.file_list:
+        for i, file_path in enumerate(self.file_list):
+            if not os.path.exists(file_path):
+                self.output_box.append(f"⚠️ File missing: {file_path}")
+                continue
+
             meta = get_metadata(file_path)
 
-            # BPM fallback if not found and analysis is enabled
+            # BPM fallback if missing
             if sort_option == "BPM Range" and ("BPM" not in meta or not isinstance(meta["BPM"], (float, int))):
                 if self.bpm_checkbox.isChecked():
                     bpm = get_bpm(file_path)
@@ -136,11 +167,21 @@ class SortifyApp(QWidget):
             else:
                 value = "Unsorted"
 
-            # Move file
-            move_to_sorted_folder(self.folder_path, file_path, value, sort_option)
-            self.output_box.append(f"✅ {meta['filename']} → {sort_option}/{value}")
+            # Display preview
+            if preview:
+                self.output_box.append(f"📂 {meta['filename']} → {sort_option}/{value}")
+            else:
+                move_to_sorted_folder(self.folder_path, file_path, value, sort_option)
+                self.output_box.append(f"✅ {meta['filename']} → {sort_option}/{value}")
 
-        self.output_box.append("\nDone! Files sorted.")
+            # Update progress bar
+            self.progress_bar.setValue(i + 1)
+
+        if not preview:
+            delete_empty_folders(self.folder_path)
+            self.output_box.append("\n✅ Sorting Complete! Empty folders deleted.")
+
+        self.output_box.append("\nPreview Mode Complete." if preview else "\nSorting Complete!")
 
 
 if __name__ == "__main__":
