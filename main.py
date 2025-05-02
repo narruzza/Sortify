@@ -1,17 +1,18 @@
 import sys
 import os
-import time
 import shutil
+import librosa
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QLabel, QFileDialog,
-    QVBoxLayout, QHBoxLayout, QTextEdit, QCheckBox, QListWidget, QListWidgetItem,
-    QAbstractItemView, QProgressBar
+    QApplication, QWidget, QLabel, QPushButton, QFileDialog, QListWidget, QListWidgetItem,
+    QCheckBox, QTextEdit, QHBoxLayout, QVBoxLayout, QProgressBar, QMessageBox, QAbstractItemView
 )
+from PyQt6.QtGui import QPixmap, QFont, QPalette, QColor
 from PyQt6.QtCore import Qt
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TXXX
-import librosa
 
+
+# --- Utility Functions ---
 
 def get_bpm(file_path):
     y, sr = librosa.load(file_path, sr=None)
@@ -31,11 +32,7 @@ def update_bpm_metadata(file_path, bpm):
 
 
 def get_metadata(file_path):
-    metadata = {
-        "filename": os.path.basename(file_path),
-        "path": file_path
-    }
-
+    metadata = {"filename": os.path.basename(file_path), "path": file_path}
     if file_path.lower().endswith(".mp3"):
         audio = MP3(file_path, ID3=ID3)
         if audio.tags:
@@ -70,165 +67,196 @@ def delete_empty_folders(folder):
                 os.rmdir(dir_path)
 
 
+# --- Main App Class ---
+
 class SortifyApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Sortify - Advanced Sorter")
-        self.resize(700, 700)
+        self.setWindowTitle("Sortify")
+        self.resize(850, 600)
 
         self.folder_path = None
-        self.file_list = []
-        self.last_sort_map = {}  # file: original_path
+        self.last_sort_map = {}
 
-        # UI elements
+        # Top Logo Section
+        logo = QPixmap("sortify_logo.png").scaledToHeight(50, Qt.TransformationMode.SmoothTransformation)
+        self.logo_label = QLabel()
+        self.logo_label.setPixmap(logo)
+
+        self.title_label = QLabel("Sortify")
+        self.title_label.setFont(QFont("Arial", 20, QFont.Weight.Bold))
+        self.subtitle_label = QLabel("Organize your music by artist, genre, BPM, or alphabetical folders.")
+
+        # Folder Selection
         self.folder_label = QLabel("No folder selected.")
         self.select_button = QPushButton("Select Folder")
-        self.bpm_checkbox = QCheckBox("Enable BPM Analysis")
 
-        self.criteria_label = QLabel("Select Sort Criteria (drag to reorder):")
+        # Sort Options
+        self.bpm_checkbox = QCheckBox("Enable BPM Analysis")
         self.criteria_list = QListWidget()
         self.criteria_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self.criteria_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
-        for option in ["Artist", "Genre", "BPM Range", "Alphabetical"]:
-            item = QListWidgetItem(option)
-            self.criteria_list.addItem(item)
+        for c in ["Artist", "Genre", "BPM Range", "Alphabetical"]:
+            self.criteria_list.addItem(QListWidgetItem(c))
 
+        # Buttons
         self.preview_button = QPushButton("Preview Sort")
         self.sort_button = QPushButton("Sort")
         self.undo_button = QPushButton("Undo Last Sort")
         self.undo_button.setEnabled(False)
 
+        # Output
         self.output_box = QTextEdit()
         self.output_box.setReadOnly(True)
         self.progress_bar = QProgressBar()
 
-        # Layout
+        # --- Layouts ---
+        header = QVBoxLayout()
+        header.addWidget(self.logo_label)
+        header.addWidget(self.title_label)
+        header.addWidget(self.subtitle_label)
+
+        # Left Controls
+        controls = QVBoxLayout()
+        controls.addWidget(self.folder_label)
+        controls.addWidget(self.select_button)
+        controls.addWidget(self.bpm_checkbox)
+        controls.addWidget(QLabel("Select Sort Criteria (drag to reorder):"))
+        controls.addWidget(self.criteria_list)
+        controls.addWidget(self.preview_button)
+        controls.addWidget(self.sort_button)
+        controls.addWidget(self.undo_button)
+
+        # Right Output
+        output = QVBoxLayout()
+        output.addWidget(QLabel("Output:"))
+        output.addWidget(self.output_box)
+        output.addWidget(self.progress_bar)
+
+        # Horizontal Split
+        main_split = QHBoxLayout()
+        main_split.addLayout(controls, 2)
+        main_split.addLayout(output, 3)
+
+        # Final Layout
         layout = QVBoxLayout()
-        layout.addWidget(self.folder_label)
-        layout.addWidget(self.select_button)
-        layout.addWidget(self.bpm_checkbox)
-        layout.addWidget(self.criteria_label)
-        layout.addWidget(self.criteria_list)
-        layout.addWidget(self.preview_button)
-        layout.addWidget(self.sort_button)
-        layout.addWidget(self.undo_button)
-        layout.addWidget(self.progress_bar)
-        layout.addWidget(self.output_box)
+        layout.addLayout(header)
+        layout.addSpacing(10)
+        layout.addLayout(main_split)
         self.setLayout(layout)
 
-        # Connections
+        # Connect Events
         self.select_button.clicked.connect(self.select_folder)
-        self.preview_button.clicked.connect(lambda: self.process_files(preview=True))
-        self.sort_button.clicked.connect(lambda: self.process_files(preview=False))
+        self.preview_button.clicked.connect(lambda: self.sort_files(preview=True))
+        self.sort_button.clicked.connect(lambda: self.sort_files(preview=False))
         self.undo_button.clicked.connect(self.undo_sort)
+
+        self.set_dark_or_light_mode()
+
+    def set_dark_or_light_mode(self):
+        palette = self.palette()
+        is_dark = palette.color(QPalette.ColorRole.Window).value() < 128
+        if is_dark:
+            self.setStyleSheet("QWidget { color: white; }")
+        else:
+            self.setStyleSheet("QWidget { color: black; }")
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder:
             self.folder_path = folder
-            self.file_list = scan_folder(folder)
-            self.folder_label.setText(f"Selected: {os.path.basename(folder)} ({len(self.file_list)} files)")
+            self.folder_label.setText(f"Selected: {os.path.basename(folder)}")
 
     def get_sort_order(self):
         return [item.text() for item in self.criteria_list.selectedItems()]
 
     def build_sort_path(self, meta, sort_order):
         parts = []
-        for criterion in sort_order:
-            if criterion == "Artist":
+        for crit in sort_order:
+            if crit == "Artist":
                 parts.append(meta.get("Artist", "Unknown Artist"))
-            elif criterion == "Genre":
+            elif crit == "Genre":
                 parts.append(meta.get("Genre", "Unknown Genre"))
-            elif criterion == "BPM Range":
-                bpm = meta.get("BPM", None)
+            elif crit == "BPM Range":
+                bpm = meta.get("BPM")
                 if bpm:
-                    low = int(bpm // 10 * 10)
-                    high = low + 9
-                    parts.append(f"{low}-{high} BPM")
+                    parts.append(f"{int(bpm // 10) * 10}-{int(bpm // 10) * 10 + 9} BPM")
                 else:
                     parts.append("Unknown BPM")
-            elif criterion == "Alphabetical":
-                first_char = meta["filename"][0].upper()
-                parts.append(first_char if first_char.isalpha() else "#")
+            elif crit == "Alphabetical":
+                char = meta["filename"][0].upper()
+                parts.append(char if char.isalpha() else "#")
         return os.path.join(*parts)
 
-    def process_files(self, preview=False):
+    def sort_files(self, preview=False):
         self.output_box.clear()
-        self.progress_bar.setValue(0)
         self.last_sort_map.clear()
-
-        self.file_list = scan_folder(self.folder_path)
         sort_order = self.get_sort_order()
         if not sort_order:
             self.output_box.append("⚠️ No sort criteria selected.")
             return
 
-        self.progress_bar.setMaximum(len(self.file_list))
+        files = scan_folder(self.folder_path)
+        self.progress_bar.setMaximum(len(files))
+        self.progress_bar.setValue(0)
 
-        for i, file_path in enumerate(self.file_list):
+        for i, file_path in enumerate(files):
             if not os.path.exists(file_path):
                 continue
-
             meta = get_metadata(file_path)
 
-            if "BPM Range" in sort_order and ("BPM" not in meta or not isinstance(meta["BPM"], (float, int))):
+            if "BPM Range" in sort_order and ("BPM" not in meta):
                 if self.bpm_checkbox.isChecked():
                     bpm = get_bpm(file_path)
                     meta["BPM"] = bpm
                     if file_path.lower().endswith(".mp3"):
                         update_bpm_metadata(file_path, bpm)
 
-            sort_path = self.build_sort_path(meta, sort_order)
-            target_dir = os.path.join(self.folder_path, *sort_path.split(os.sep))
-            os.makedirs(target_dir, exist_ok=True)
+            folder_structure = self.build_sort_path(meta, sort_order)
+            destination_dir = os.path.join(self.folder_path, folder_structure)
+            os.makedirs(destination_dir, exist_ok=True)
 
-            if not preview:
-                new_path = os.path.join(target_dir, os.path.basename(file_path))
-                self.last_sort_map[file_path] = new_path
-                shutil.move(file_path, new_path)
-                self.output_box.append(f"✅ Moved: {meta['filename']} → {sort_path}")
+            dest_path = os.path.join(destination_dir, os.path.basename(file_path))
+
+            if preview:
+                self.output_box.append(f"📂 {meta['filename']} → {folder_structure}")
             else:
-                self.output_box.append(f"📂 Preview: {meta['filename']} → {sort_path}")
+                self.last_sort_map[file_path] = dest_path
+                shutil.move(file_path, dest_path)
+                self.output_box.append(f"✅ Moved: {meta['filename']} → {folder_structure}")
 
             self.progress_bar.setValue(i + 1)
 
-        if not preview:
+        if preview:
+            self.output_box.append("\nPreview Complete.")
+        else:
             delete_empty_folders(self.folder_path)
             self.undo_button.setEnabled(True)
-            self.output_box.append("\n✅ Sort Complete!")
-        else:
-            self.output_box.append("\nPreview Complete.")
+            self.output_box.append("\n✅ Sorting Complete.")
 
     def undo_sort(self):
-        self.output_box.append("\n🔄 Undoing last sort...")
-        moved_count = 0
+        confirm = QMessageBox.question(self, "Undo Sort", "Are you sure you want to move all songs back to the root folder?",
+                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
 
-        all_files = scan_folder(self.folder_path)
+        moved = 0
+        files = scan_folder(self.folder_path)
 
-        for file_path in all_files:
-            # Skip if it's already in the root folder
+        for file_path in files:
             if os.path.dirname(file_path) == self.folder_path:
                 continue
-
-            # Build target path
             dest_path = os.path.join(self.folder_path, os.path.basename(file_path))
-
-            # If the destination file already exists, skip to avoid overwrite
-            if os.path.exists(dest_path):
-                self.output_box.append(f"⚠️ Skipped (already exists in root): {os.path.basename(file_path)}")
-                continue
-
             try:
                 shutil.move(file_path, dest_path)
-                self.output_box.append(f"↩️ Moved back: {os.path.basename(file_path)}")
-                moved_count += 1
+                moved += 1
+                self.output_box.append(f"↩️ {os.path.basename(file_path)} → root")
             except Exception as e:
-                self.output_box.append(f"❌ Failed to move: {file_path} ({str(e)})")
+                self.output_box.append(f"❌ Failed to move: {file_path} ({e})")
 
         delete_empty_folders(self.folder_path)
-        self.output_box.append(f"\nUndo complete. {moved_count} file(s) moved back to root folder.")
         self.undo_button.setEnabled(False)
-
+        self.output_box.append(f"\nUndo complete. {moved} files returned to root.")
 
 
 if __name__ == "__main__":
