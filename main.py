@@ -201,15 +201,34 @@ class SortifyApp(QWidget):
 
     def undo_sort(self):
         self.output_box.append("\n🔄 Undoing last sort...")
-        for dest, original in self.last_sort_map.items():
-            if os.path.exists(original):
-                continue  # Already exists, skip
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            shutil.move(dest, original)
-            self.output_box.append(f"↩️ {os.path.basename(original)} moved back.")
+        moved_count = 0
+
+        all_files = scan_folder(self.folder_path)
+
+        for file_path in all_files:
+            # Skip if it's already in the root folder
+            if os.path.dirname(file_path) == self.folder_path:
+                continue
+
+            # Build target path
+            dest_path = os.path.join(self.folder_path, os.path.basename(file_path))
+
+            # If the destination file already exists, skip to avoid overwrite
+            if os.path.exists(dest_path):
+                self.output_box.append(f"⚠️ Skipped (already exists in root): {os.path.basename(file_path)}")
+                continue
+
+            try:
+                shutil.move(file_path, dest_path)
+                self.output_box.append(f"↩️ Moved back: {os.path.basename(file_path)}")
+                moved_count += 1
+            except Exception as e:
+                self.output_box.append(f"❌ Failed to move: {file_path} ({str(e)})")
+
         delete_empty_folders(self.folder_path)
+        self.output_box.append(f"\nUndo complete. {moved_count} file(s) moved back to root folder.")
         self.undo_button.setEnabled(False)
-        self.output_box.append("\nUndo complete.")
+
 
 
 if __name__ == "__main__":
