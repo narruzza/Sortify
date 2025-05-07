@@ -148,7 +148,20 @@ class SortWorker(QThread):
 
 # --- Main App Class ---
 
+from PyQt6.QtCore import QPropertyAnimation, QRect, QEasingCurve
+
 class SortifyApp(QWidget):
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        paths = [url.toLocalFile() for url in event.mimeData().urls()]
+        folders = [p for p in paths if os.path.isdir(p)]
+        if folders:
+            self.folder_path = folders[0]
+            self.folder_label.setText(f"Dropped: {os.path.basename(self.folder_path)}")
+            self.animate_label(self.folder_label)
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sortify")
@@ -170,6 +183,7 @@ class SortifyApp(QWidget):
 
         self.folder_label = QLabel("No folder selected.")
         self.select_button = QPushButton("Select Folder")
+        self.select_button.setStyleSheet("QPushButton:hover { background-color: #444; color: white; }")
 
         self.bpm_checkbox = QCheckBox("Enable BPM Analysis")
         self.criteria_list = QListWidget()
@@ -179,13 +193,17 @@ class SortifyApp(QWidget):
             self.criteria_list.addItem(QListWidgetItem(c))
 
         self.preview_button = QPushButton("Preview Sort")
+        self.preview_button.setStyleSheet("QPushButton:hover { background-color: #444; color: white; }")
         self.sort_button = QPushButton("Sort")
+        self.sort_button.setStyleSheet("QPushButton:hover { background-color: #444; color: white; }")
         self.undo_button = QPushButton("Undo Last Sort")
+        self.undo_button.setStyleSheet("QPushButton:hover { background-color: #444; color: white; }")
         self.undo_button.setEnabled(False)
 
         self.output_box = QTextEdit()
         self.output_box.setReadOnly(True)
         self.progress_bar = QProgressBar()
+        self.progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #5cb85c; } QProgressBar { text-align: center; }")
 
         # Layout
         controls = QVBoxLayout()
@@ -214,6 +232,7 @@ class SortifyApp(QWidget):
         layout.addSpacing(10)
         layout.addLayout(main_split)
         self.setLayout(layout)
+        self.setAcceptDrops(True)
 
         # Connect
         self.select_button.clicked.connect(self.select_folder)
@@ -232,11 +251,13 @@ class SortifyApp(QWidget):
         if folder:
             self.folder_path = folder
             self.folder_label.setText(f"Selected: {os.path.basename(folder)}")
+            self.animate_label(self.folder_label)
 
     def get_sort_order(self):
         return [item.text() for item in self.criteria_list.selectedItems()]
 
     def run_sort(self, preview):
+        self.animate_label(self.output_box)
         self.output_box.clear()
         sort_order = self.get_sort_order()
         if not sort_order:
@@ -257,10 +278,21 @@ class SortifyApp(QWidget):
         self.output_box.append(msg)
 
     def handle_finish(self, msg):
+        self.animate_label(self.output_box)
         self.output_box.append(msg)
+        delete_empty_folders(self.folder_path)
         if not self.worker.preview:
             self.last_sort_map = self.worker.last_sort_map
             self.undo_button.setEnabled(True)
+
+    def animate_label(self, widget):
+        anim = QPropertyAnimation(widget, b"geometry")
+        anim.setDuration(250)
+        anim.setEasingCurve(QEasingCurve.Type.OutBounce)
+        rect = widget.geometry()
+        anim.setStartValue(QRect(rect.x(), rect.y() - 5, rect.width(), rect.height()))
+        anim.setEndValue(rect)
+        anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
 
     def undo_sort(self):
         confirm = QMessageBox.question(self, "Undo Sort", "Are you sure you want to move all songs back to the root folder?",
@@ -284,7 +316,8 @@ class SortifyApp(QWidget):
 
         delete_empty_folders(self.folder_path)
         self.undo_button.setEnabled(False)
-        self.output_box.append(f"\nUndo complete. {moved} files returned to root.")
+        self.output_box.append(f"Undo complete. {moved} files returned to root.")
+        delete_empty_folders(self.folder_path)
 
 
 if __name__ == "__main__":
