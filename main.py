@@ -13,20 +13,6 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TXXX
 
-# Sortify Logo as app icon in MacOS dock
-if sys.platform == "darwin":
-    try:
-        from AppKit import NSApplication, NSImage
-        from Foundation import NSURL
-        import objc
-
-        app_icon_path = os.path.abspath("sortify_logo.png")
-        if os.path.exists(app_icon_path):
-            app = NSApplication.sharedApplication()
-            icon = NSImage.alloc().initByReferencingFile_(app_icon_path)
-            app.setApplicationIconImage_(icon)
-    except Exception as e:
-        print(f"Could not set macOS Dock icon: {e}")
 
 # --- Utility Functions ---
 
@@ -55,27 +41,43 @@ def update_bpm_metadata(file_path, bpm):
 
 def get_metadata(file_path):
     metadata = {"filename": os.path.basename(file_path), "path": file_path}
-    if file_path.lower().endswith(".mp3"):
-        audio = MP3(file_path, ID3=ID3)
-        if audio.tags:
-            for tag in audio.tags.values():
-                try:
-                    if hasattr(tag, "desc") and tag.desc.lower() == "bpm":
-                        metadata["BPM"] = float(tag.text[0])
-                    elif hasattr(tag, "text"):
-                        if tag.FrameID == "TPE1":
-                            metadata["Artist"] = tag.text[0]
-                        elif tag.FrameID == "TCON":
-                            metadata["Genre"] = tag.text[0]
-                except Exception:
-                    continue
+    try:
+        if file_path.lower().endswith(".mp3"):
+            audio = MP3(file_path, ID3=ID3)
+            if audio.tags:
+                for tag in audio.tags.values():
+                    try:
+                        if hasattr(tag, "desc") and tag.desc.lower() == "bpm":
+                            metadata["BPM"] = float(tag.text[0])
+                        elif hasattr(tag, "text"):
+                            if tag.FrameID == "TPE1":
+                                metadata["Artist"] = tag.text[0]
+                            elif tag.FrameID == "TCON":
+                                metadata["Genre"] = tag.text[0]
+                    except Exception:
+                        continue
+
+        elif file_path.lower().endswith(".flac"):
+            from mutagen.flac import FLAC
+            audio = FLAC(file_path)
+            metadata["Artist"] = audio.get("artist", ["Unknown Artist"])[0]
+            metadata["Genre"] = audio.get("genre", ["Unknown Genre"])[0]
+
+        elif file_path.lower().endswith(".aiff"):
+            from mutagen.aiff import AIFF
+            audio = AIFF(file_path)
+            metadata["Artist"] = audio.get("TPE1", ["Unknown Artist"])[0]
+            metadata["Genre"] = audio.get("TCON", ["Unknown Genre"])[0]
+
+    except Exception as e:
+        metadata["error"] = str(e)
     return metadata
 
 def scan_folder(folder):
     music_files = []
     for root, _, files in os.walk(folder):
         for file in files:
-            if file.lower().endswith((".mp3", ".wav")):
+            if file.lower().endswith((".mp3", ".wav", ".flac", ".aiff")):
                 music_files.append(os.path.join(root, file))
     return music_files
 
@@ -146,6 +148,7 @@ class SortWorker(QThread):
                     "hard techno": "Hard Techno",
                     "garage": "UK Garage",
                     "uk garage": "UK Garage",
+                    "ukg": "UK Garage",
                     "speed garage": "UK Garage",
                     "bassline": "Bassline"
                 }
@@ -166,6 +169,9 @@ class SortWorker(QThread):
                 if not os.path.exists(file_path):
                     continue
                 meta = get_metadata(file_path)
+                if "error" in meta:
+                    self.update_progress.emit(i + 1, f"⚠️ Skipped: {meta['filename']} (metadata error: {meta['error']})")
+                    continue
 
                 if "BPM Range" in self.sort_order and ("BPM" not in meta) and self.bpm_enabled:
                     meta["BPM"] = get_bpm(file_path)
@@ -328,6 +334,7 @@ class SortifyApp(QWidget):
     def handle_progress(self, value, msg):
         self.progress_bar.setValue(value)
         self.output_box.append(msg)
+        self.output_box.append("🌟 Sort complete. Tags: 🎵 Genre, 🎤 Artist, 🧠 Key, 🔊 BPM")
 
     def handle_finish(self, msg):
         self.animate_label(self.output_box)
