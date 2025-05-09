@@ -13,6 +13,17 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TXXX
 
+# Sortify Logo as App Icon in Dock
+if sys.platform == "darwin":
+    try:
+        from AppKit import NSApplication, NSImage
+        app_icon_path = os.path.abspath("sortify_logo.png")
+        if os.path.exists(app_icon_path):
+            app = NSApplication.sharedApplication()
+            icon = NSImage.alloc().initByReferencingFile_(app_icon_path)
+            app.setApplicationIconImage_(icon)
+    except Exception as e:
+        print(f"Could not set macOS Dock icon: {e}")
 
 # --- Utility Functions ---
 
