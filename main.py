@@ -12,8 +12,10 @@ from PyQt6.QtGui import QPixmap, QFont, QPalette, QColor, QIcon
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TXXX
+from collections import Counter
+from PyQt6.QtWidgets import QTextBrowser
 
-# Sortify Logo as App Icon in Dock
+# Sortify Logo in MacOS Dock
 if sys.platform == "darwin":
     try:
         from AppKit import NSApplication, NSImage
@@ -273,6 +275,15 @@ class SortifyApp(QWidget):
         self.output_box.setReadOnly(True)
         self.progress_bar = QProgressBar()
         self.progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #5cb85c; } QProgressBar { text-align: center; }")
+        self.stats_panel = QTextBrowser()
+      
+        self.stats_panel.setVisible(False)
+        self.stats_panel.setMaximumWidth(300)
+        self.stats_panel.setStyleSheet("background-color: #222; color: white; padding: 8px;")
+        
+        self.stats_button = QPushButton("📊 Show Stats")
+        self.stats_button.setStyleSheet("QPushButton:hover { background-color: #444; color: white; }")
+        self.stats_button.clicked.connect(self.toggle_stats_panel)
 
         # Layout
         controls = QVBoxLayout()
@@ -284,6 +295,7 @@ class SortifyApp(QWidget):
         controls.addWidget(self.preview_button)
         controls.addWidget(self.sort_button)
         controls.addWidget(self.undo_button)
+        controls.addWidget(self.stats_button)
 
         output = QVBoxLayout()
         output.addWidget(QLabel("Output:"))
@@ -293,6 +305,7 @@ class SortifyApp(QWidget):
         main_split = QHBoxLayout()
         main_split.addLayout(controls, 2)
         main_split.addLayout(output, 3)
+        main_split.addWidget(self.stats_panel)
 
         layout = QVBoxLayout()
         layout.addWidget(self.logo_label)
@@ -389,6 +402,61 @@ class SortifyApp(QWidget):
         self.output_box.append(f"Undo complete. {moved} files returned to root.")
         delete_empty_folders(self.folder_path)
 
+    def toggle_stats_panel(self):
+        if self.stats_panel.isVisible():
+            self.stats_panel.setVisible(False)
+            self.stats_button.setText("📊 Show Stats")
+        else:
+            self.refresh_stats()
+            self.stats_panel.setVisible(True)
+            self.stats_button.setText("❌ Hide Stats")
+    
+    def refresh_stats(self):
+        files = scan_folder(self.folder_path)
+        genre_counts, artist_counts, bpm_ranges = self.compute_statistics(files)
+        total_size = self.compute_total_size(files)
+    
+        html = "<h3>📊 Library Stats</h3>"
+        html += f"<p><b>💾 Total Size:</b> {self.format_bytes(total_size)}</p>"
+    
+        html += "<p><b>🎵 Genres:</b><br>"
+        for genre, count in genre_counts.items():
+            html += f"{genre}: {count}<br>"
+        html += "</p><p><b>🎤 Artists:</b><br>"
+        for artist, count in artist_counts.items():
+            html += f"{artist}: {count}<br>"
+        html += "</p><p><b>🔊 BPM Ranges:</b><br>"
+        for bpm, count in bpm_ranges.items():
+            html += f"{bpm}: {count}<br>"
+        html += "</p>"
+    
+        self.stats_panel.setHtml(html)
+    
+    def compute_statistics(self, file_paths):
+        genre_counts = Counter()
+        artist_counts = Counter()
+        bpm_ranges = Counter()
+        for path in file_paths:
+            meta = get_metadata(path)
+            genre = meta.get("Genre", "Unknown Genre")
+            artist = meta.get("Artist", "Unknown Artist")
+            bpm = meta.get("BPM")
+            genre_counts[genre] += 1
+            artist_counts[artist] += 1
+            if bpm:
+                range_key = f"{(int(bpm) // 10) * 10}-{(int(bpm) // 10) * 10 + 9} BPM"
+                bpm_ranges[range_key] += 1
+        return genre_counts, artist_counts, bpm_ranges
+    
+    def compute_total_size(self, file_paths):
+        return sum(os.path.getsize(path) for path in file_paths if os.path.exists(path))
+    
+    def format_bytes(self, size_bytes):
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} TB"
 
 if __name__ == "__main__":
     if sys.platform == "darwin":
