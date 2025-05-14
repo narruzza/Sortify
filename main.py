@@ -15,7 +15,7 @@ from mutagen.id3 import ID3, TXXX
 from collections import Counter
 from PyQt6.QtWidgets import QTextBrowser
 
-# Sortify Logo in MacOS Dock
+#Sortify logo in MacOS dock
 if sys.platform == "darwin":
     try:
         from AppKit import NSApplication, NSImage
@@ -29,12 +29,14 @@ if sys.platform == "darwin":
 
 # --- Utility Functions ---
 
+#Gets bpm from files in selected folder
 def get_bpm(file_path):
     y, sr = librosa.load(file_path, sr=None)
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr, onset_envelope=onset_env)
     return round(float(tempo[0]), 2)
 
+#Gets musical key from audio using chroma features
 def get_key(file_path):
     y, sr = librosa.load(file_path, sr=None)
     chroma = librosa.feature.chroma_cens(y=y, sr=sr)
@@ -43,6 +45,7 @@ def get_key(file_path):
     key_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
     return key_names[key_idx]
 
+#Writes bpm value into mp3 metadata tag
 def update_bpm_metadata(file_path, bpm):
     if not file_path.lower().endswith(".mp3"):
         return
@@ -52,6 +55,7 @@ def update_bpm_metadata(file_path, bpm):
     audio.tags.add(TXXX(encoding=3, desc="BPM", text=str(bpm)))
     audio.save()
 
+#Extracts metadata from supported audio formats
 def get_metadata(file_path):
     metadata = {"filename": os.path.basename(file_path), "path": file_path}
     try:
@@ -86,6 +90,7 @@ def get_metadata(file_path):
         metadata["error"] = str(e)
     return metadata
 
+#Recursively finds all music files in the selected folder
 def scan_folder(folder):
     music_files = []
     for root, _, files in os.walk(folder):
@@ -94,6 +99,7 @@ def scan_folder(folder):
                 music_files.append(os.path.join(root, file))
     return music_files
 
+#Removes all empty folders from the selected root
 def delete_empty_folders(folder):
     for root, dirs, _ in os.walk(folder, topdown=False):
         for dir_name in dirs:
@@ -101,6 +107,7 @@ def delete_empty_folders(folder):
             if not os.listdir(dir_path):
                 os.rmdir(dir_path)
 
+#Replaces some characters in filenames
 def sanitize_filename(filename):
     return re.sub(r'[\\/:*?"<>|]', '_', filename)
 
@@ -111,6 +118,7 @@ class SortWorker(QThread):
     update_progress = pyqtSignal(int, str)
     finished = pyqtSignal(str)
 
+#Initializes the sort worker thread with all parameters
     def __init__(self, files, folder_path, sort_order, bpm_enabled, preview):
         super().__init__()
         self.files = files
@@ -120,6 +128,7 @@ class SortWorker(QThread):
         self.preview = preview
         self.last_sort_map = {}
 
+#Sorts songs into genres despite metadata aliases
     def build_sort_path(self, meta):
         parts = []
         for crit in self.sort_order:
@@ -176,6 +185,7 @@ class SortWorker(QThread):
                 parts.append(meta.get("Key", "Unknown Key"))
         return os.path.join(*parts)
 
+#Builds destination path based on metadata and selected sort order
     def run(self):
         try:
             for i, file_path in enumerate(self.files):
@@ -226,13 +236,22 @@ class SortifyApp(QWidget):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 
+    #Handles folder drop via drag-and-drop
     def dropEvent(self, event):
-        paths = [url.toLocalFile() for url in event.mimeData().urls()]
-        folders = [p for p in paths if os.path.isdir(p)]
+        paths = []
+        for url in event.mimeData().urls():
+            paths.append(url.toLocalFile())
+        
+        folders = []
+        for p in paths:
+            if os.path.isdir(p):
+                folders.append(p)
+        
         if folders:
             self.folder_path = folders[0]
             self.folder_label.setText(f"Dropped: {os.path.basename(self.folder_path)}")
             self.animate_label(self.folder_label)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sortify")
@@ -335,9 +354,11 @@ class SortifyApp(QWidget):
             self.folder_label.setText(f"Selected: {os.path.basename(folder)}")
             self.animate_label(self.folder_label)
 
+    #Returns selected sort order from the drag-drop list
     def get_sort_order(self):
         return [item.text() for item in self.criteria_list.selectedItems()]
 
+    #Starts sort worker thread for preview or move
     def run_sort(self, preview):
         self.animate_label(self.output_box)
         self.output_box.clear()
@@ -354,12 +375,14 @@ class SortifyApp(QWidget):
         self.worker.update_progress.connect(self.handle_progress)
         self.worker.finished.connect(self.handle_finish)
         self.worker.start()
-
+    
+    #Updates progress bar and log during sorting
     def handle_progress(self, value, msg):
         self.progress_bar.setValue(value)
         self.output_box.append(msg)
         self.output_box.append("🌟 Sort complete. Tags: 🎵 Genre, 🎤 Artist, 🧠 Key, 🔊 BPM")
 
+    #Final handler once sorting is complete
     def handle_finish(self, msg):
         self.animate_label(self.output_box)
         self.output_box.append(msg)
@@ -368,6 +391,7 @@ class SortifyApp(QWidget):
             self.last_sort_map = self.worker.last_sort_map
             self.undo_button.setEnabled(True)
 
+    #Animation for ui feedback
     def animate_label(self, widget):
         anim = QPropertyAnimation(widget, b"geometry")
         anim.setDuration(250)
@@ -377,6 +401,7 @@ class SortifyApp(QWidget):
         anim.setEndValue(rect)
         anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
 
+    #Undoes the last sort by moving files back to root
     def undo_sort(self):
         confirm = QMessageBox.question(self, "Undo Sort", "Are you sure you want to move all songs back to the root folder?",
                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -402,6 +427,7 @@ class SortifyApp(QWidget):
         self.output_box.append(f"Undo complete. {moved} files returned to root.")
         delete_empty_folders(self.folder_path)
 
+    #Toggles the stats panel on and off
     def toggle_stats_panel(self):
         if self.stats_panel.isVisible():
             self.stats_panel.setVisible(False)
@@ -411,6 +437,7 @@ class SortifyApp(QWidget):
             self.stats_panel.setVisible(True)
             self.stats_button.setText("❌ Hide Stats")
     
+    #Refreshes statistics panel content from current folder
     def refresh_stats(self):
         files = scan_folder(self.folder_path)
         genre_counts, artist_counts, bpm_ranges = self.compute_statistics(files)
@@ -432,6 +459,7 @@ class SortifyApp(QWidget):
     
         self.stats_panel.setHtml(html)
     
+    #Counts genres, artists and bpm ranges from files
     def compute_statistics(self, file_paths):
         genre_counts = Counter()
         artist_counts = Counter()
@@ -448,9 +476,11 @@ class SortifyApp(QWidget):
                 bpm_ranges[range_key] += 1
         return genre_counts, artist_counts, bpm_ranges
     
+    #Sums up total file sizes for stats panel
     def compute_total_size(self, file_paths):
         return sum(os.path.getsize(path) for path in file_paths if os.path.exists(path))
     
+    #Formats file size into readable units
     def format_bytes(self, size_bytes):
         for unit in ['B', 'KB', 'MB', 'GB']:
             if size_bytes < 1024.0:
