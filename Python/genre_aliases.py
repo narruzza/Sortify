@@ -1,3 +1,24 @@
+import re
+
+def clean_genre(raw):
+    if not raw:
+        return ""
+    raw = str(raw).lower()
+
+    # Remove URL-like text
+    raw = re.sub(r'https?://\S+', '', raw)
+
+    # Remove punctuation, special symbols, and numbers
+    raw = re.sub(r'[^a-zA-Z\s&-]', '', raw)
+
+    # Replace multiple spaces with one
+    raw = re.sub(r'\s+', ' ', raw).strip()
+
+    # If multiple genres, just use the first one
+    raw = raw.split('/')[0].split(',')[0]
+
+    return raw
+
 GENRE_ALIASES = {
     "acid house": "House",
     "ambient": "Electronic",
@@ -94,5 +115,76 @@ GENRE_ALIASES = {
     "uk hardcore": "Hardcore",
     "garage": "UK Garage",
     "uk garage": "UK Garage",
-    "bassline": "Bassline"
+    "bassline": "Bassline",
+    "acid house": "House",
+    "ambient": "Electronic",
+    "bass music": "Future Bass",
+    "bassline": "Bassline",
+    "breakbeat": "Breakbeat",
+    "breaks": "Breakbeat",
+    "brostep": "Dubstep",
+    "dance": "Dance",
+    "deep house": "House",
+    "dnb": "Drum & Bass",
+    "drum & bass": "Drum & Bass",
+    "drum and bass": "Drum & Bass",
+    "drum n bass": "Drum & Bass",
+    "dubstep": "Dubstep",
+    "edm": "Electronic",
+    "electro": "Electronic",
+    "electro house": "House",
+    "electronic": "Electronic",
+    "electronica": "Electronic",
+    "electronicfreshcom": "Electronic",
+    "future bass": "Future Bass",
+    "gabber": "Hardcore",
+    "garage": "UK Garage",
+    "glitch hop": "Glitch Hop",
+    "goa": "Psytrance",
+    "gqom": "Bassline",
+    "grime": "Bassline",
+    "happy hardcore": "Hardcore",
+    "hard techno": "Hard Techno",
+    "hardcore": "Hardcore",
+    "hardstyle": "Hardstyle",
+    "hip hop": "Hip-Hop",
+    "hip-hop": "Hip-Hop",
+    "house": "House",
+    "idm": "Electronic",
+    "industrial techno": "Hard Techno",
+    "jungle": "Jungle",
+    "liquid dnb": "Drum & Bass",
+    "liquid funk": "Drum & Bass",
+    "lo-fi": "Lo-Fi",
+    "lo-fi hip hop": "Lo-Fi",
+    "lofi": "Lo-Fi",
+    "mashup": "Mashup",
+    "minimal techno": "Techno",
+    "neurofunk": "Drum & Bass",
+    "other": "Unknown Genre",
+    "pop": "Pop",
+    "pop/rock": "Pop Rock",
+    "progressive house": "House",
+    "progressive trance": "Trance",
+    "psy": "Psytrance",
+    "psytrance": "Psytrance",
+    "r&b": "R&B",
+    "rap": "Hip-Hop",
+    "retro rave jungle": "Jungle",
+    "rnb": "R&B",
+    "rock": "Rock",
+    "speed garage": "UK Garage",
+    "tech house": "House",
+    "techno": "Techno",
+    "trance": "Trance",
+    "trap": "Trap",
+    "uk garage": "UK Garage",
+    "uk hardcore": "Hardcore",
+    "uplifting trance": "Trance",
+    "various": "Unknown Genre",
+    "uk garage / bassline": "UK Garage",
+    "ukg": "UK Garage",
+    "d&b": "Drum & Bass",
+    "drum&bass": "Drum & Bass",
+    "hard trance": "Trance",
 }

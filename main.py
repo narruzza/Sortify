@@ -15,7 +15,7 @@ from mutagen.id3 import ID3, TXXX
 from collections import Counter
 from PyQt6.QtWidgets import QTextBrowser
 
-from Python.genre_aliases import GENRE_ALIASES
+from Python.genre_aliases import GENRE_ALIASES, clean_genre
 
 #Sortify logo in MacOS dock
 if sys.platform == "darwin":
@@ -138,7 +138,7 @@ class SortWorker(QThread):
                 parts.append(meta.get("Artist", "Unknown Artist"))
             elif crit == "Genre":
                 genre = str(meta.get("Genre", "Unknown Genre")).strip().lower()
-                parts.append(GENRE_ALIASES.get(genre, "Unknown Genre"))
+                parts.append(GENRE_ALIASES.get(genre, genre.title()))
             elif crit == "BPM Range":
                 bpm = meta.get("BPM")
                 parts.append(f"{int(bpm // 10) * 10}-{int(bpm // 10) * 10 + 9} BPM" if bpm else "Unknown BPM")
