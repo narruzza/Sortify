@@ -15,6 +15,8 @@ from mutagen.id3 import ID3, TXXX
 from collections import Counter
 from PyQt6.QtWidgets import QTextBrowser
 
+from Python.genre_aliases import GENRE_ALIASES
+
 #Sortify logo in MacOS dock
 if sys.platform == "darwin":
     try:
@@ -136,45 +138,7 @@ class SortWorker(QThread):
                 parts.append(meta.get("Artist", "Unknown Artist"))
             elif crit == "Genre":
                 genre = str(meta.get("Genre", "Unknown Genre")).strip().lower()
-                genre_aliases = {
-                    "drum and bass": "Drum & Bass",
-                    "d&b": "Drum & Bass",
-                    "drum&bass": "Drum & Bass",
-                    "dnb": "Drum & Bass",
-                    "neurofunk": "Drum & Bass",
-                    "liquid dnb": "Drum & Bass",
-                    "liquid funk": "Drum & Bass",
-                    "jungle": "Jungle",
-                    "rnb": "R&B",
-                    "hip hop": "Hip-Hop",
-                    "hip-hop": "Hip-Hop",
-                    "trap": "Trap",
-                    "dubstep": "Dubstep",
-                    "future bass": "Future Bass",
-                    "electro": "Electronic",
-                    "electronic": "Electronic",
-                    "edm": "Electronic",
-                    "house": "House",
-                    "deep house": "House",
-                    "tech house": "House",
-                    "progressive house": "House",
-                    "techno": "Techno",
-                    "trance": "Trance",
-                    "hardstyle": "Hardstyle",
-                    "psytrance": "Psytrance",
-                    "goa": "Psytrance",
-                    "breakbeat": "Breakbeat",
-                    "glitch hop": "Glitch Hop",
-                    "hardcore": "Hardcore",
-                    "uk hardcore": "Hardcore",
-                    "hard techno": "Hard Techno",
-                    "garage": "UK Garage",
-                    "uk garage": "UK Garage",
-                    "ukg": "UK Garage",
-                    "speed garage": "UK Garage",
-                    "bassline": "Bassline"
-                }
-                parts.append(genre_aliases.get(genre, genre.title()))
+                parts.append(GENRE_ALIASES.get(genre, "Unknown Genre"))
             elif crit == "BPM Range":
                 bpm = meta.get("BPM")
                 parts.append(f"{int(bpm // 10) * 10}-{int(bpm // 10) * 10 + 9} BPM" if bpm else "Unknown BPM")
