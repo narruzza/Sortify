@@ -31,7 +31,7 @@ Sortify is a desktop music sorter app built with Python and PyQt6. It organizes 
 - `numpy`, `soundfile` (for `librosa` backend)
 
 ## Install dependencies:
-`pip install PyQt6 mutagen librosa`
+`pip install -r requirements.txt`
 
 ## 🚀 Usage
 `python main.py`

@@ -1,0 +1,11 @@
+# Core dependencies
+PyQt6>=6.5
+mutagen>=1.45
+librosa>=0.10
+numpy>=1.23
+scipy>=1.10
+soundfile>=0.12
+audioread>=3.0
+
+# Optional: Required only for macOS-specific features like Dock icon/name
+pyobjc>=9.0

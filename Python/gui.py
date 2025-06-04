@@ -60,7 +60,7 @@ class SortifyApp(QWidget):
 
         self.title_label = QLabel("Sortify")
         self.title_label.setFont(QFont("Arial", 20, QFont.Weight.Bold))
-        self.subtitle_label = QLabel("Organize your music by artist, genre, BPM, key, or alphabet.")
+        self.subtitle_label = QLabel("Organise your music by artist, genre, BPM, key, or alphabet.")
 
         self.folder_label = QLabel("No folder selected.")
         self.select_button = QPushButton("Select Folder")
