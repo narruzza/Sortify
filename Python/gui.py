@@ -12,11 +12,16 @@ from Python.sorting import SortWorker
 from Python.metadata import get_metadata
 from Python.utils import scan_folder, delete_empty_folders
 from Python.stats import toggle_stats_panel
+from Python.help_window import HelpWindow
 
 class SortifyApp(QWidget):
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
+    
+    def show_help_window(self):
+        help_win = HelpWindow()
+        help_win.exec()
 
     #Handles folder drop via drag-and-drop
     def dropEvent(self, event):
@@ -39,6 +44,10 @@ class SortifyApp(QWidget):
         self.setWindowTitle("Sortify")
         self.resize(850, 600)
         self.setWindowIcon(QIcon("sortify_logo.png"))
+
+        self.help_button = QPushButton("❓ Help")
+        self.help_button.setStyleSheet("QPushButton:hover { background-color: #444; color: white; }")
+        self.help_button.clicked.connect(self.show_help_window)
 
         self.folder_path = None
         self.worker = None
@@ -108,9 +117,14 @@ class SortifyApp(QWidget):
         main_split.addLayout(output, 3)
         main_split.addWidget(self.stats_panel)
 
+        header = QHBoxLayout()
+        header.addWidget(self.logo_label)
+        header.addWidget(self.title_label)
+        header.addStretch()
+        header.addWidget(self.help_button)
+
         layout = QVBoxLayout()
-        layout.addWidget(self.logo_label)
-        layout.addWidget(self.title_label)
+        layout.addLayout(header)
         layout.addWidget(self.subtitle_label)
         layout.addSpacing(10)
         layout.addLayout(main_split)
