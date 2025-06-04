@@ -43,7 +43,7 @@ class SortifyApp(QWidget):
         super().__init__()
         self.setWindowTitle("Sortify")
         self.resize(850, 600)
-        self.setWindowIcon(QIcon("Assets.sortify_logo.png"))
+        self.setWindowIcon(QIcon("Assets/sortify_logo.png"))
 
         self.help_button = QPushButton("❓ Help")
         self.help_button.setStyleSheet("QPushButton:hover { background-color: #444; color: white; }")
