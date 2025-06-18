@@ -28,17 +28,11 @@
         <mxCell id="9c50irgAcgGQGKFOtKXw-9" value="&lt;div&gt;+ update_progress: pyqtSignal&lt;/div&gt;&lt;div&gt;+ finished: pyqtSignal&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" vertex="1" parent="9c50irgAcgGQGKFOtKXw-6">
           <mxGeometry y="128" width="160" height="52" as="geometry" />
         </mxCell>
-        <mxCell id="9c50irgAcgGQGKFOtKXw-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.66;entryDx=0;entryDy=0;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="9c50irgAcgGQGKFOtKXw-3" target="9c50irgAcgGQGKFOtKXw-7">
+        <mxCell id="9c50irgAcgGQGKFOtKXw-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.66;entryDx=0;entryDy=0;entryPerimeter=0;endArrow=block;endFill=0;" edge="1" parent="1" source="9c50irgAcgGQGKFOtKXw-3" target="9c50irgAcgGQGKFOtKXw-7">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="9c50irgAcgGQGKFOtKXw-11" value="&lt;div&gt;uses&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="420" y="260" width="50" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="9c50irgAcgGQGKFOtKXw-13" value="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="340" y="260" width="30" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="9c50irgAcgGQGKFOtKXw-16" value="0..1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="510" y="260" width="40" height="30" as="geometry" />
+        <mxCell id="9c50irgAcgGQGKFOtKXw-11" value="&lt;div&gt;creates and uses&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="390" y="260" width="110" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
