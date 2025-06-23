@@ -20,7 +20,7 @@ Sortify is a desktop music sorter app built with Python and PyQt6. It organizes 
 
 ## 🖼️ Screenshots
 
-![](Assets/using_sortify.png)
+![](Assets/using_sortify1.png)
 
 ## 🛠 Requirements
 
